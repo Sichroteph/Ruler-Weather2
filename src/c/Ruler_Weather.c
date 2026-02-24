@@ -1075,11 +1075,20 @@ static void update_proc(Layer *layer, GContext *ctx) {
 
   // APP_LOG(APP_LOG_LEVEL_INFO, "11");
 
-  // Central line
+  // Central line (dashed)
   graphics_context_set_fill_color(ctx, color_line);
-  graphics_fill_rect(
-      ctx, GRect(RULER_XOFFSET, HEIGHT / 2 - 1, 180, segment_thickness), 0,
-      GCornerNone);
+  {
+    int dash_len = 6;
+    int gap_len = 4;
+    int x_start = RULER_XOFFSET;
+    int x_end = WIDTH;
+    int cx;
+    for (cx = x_start; cx < x_end; cx += dash_len + gap_len) {
+      int w = (cx + dash_len < x_end) ? dash_len : (x_end - cx);
+      graphics_fill_rect(ctx, GRect(cx, HEIGHT / 2 - 1, w, segment_thickness),
+                         0, GCornerNone);
+    }
+  }
 
   y = hour_line_ypos - hour_offset;
   graphics_context_set_stroke_color(ctx, color_ruler);
