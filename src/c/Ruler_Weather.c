@@ -898,7 +898,8 @@ static void update_proc(Layer *layer, GContext *ctx) {
   if (!IS_ROUND && is_classic) {
     // Classic view: day of week + date at top, then tmin, icon, tmax, current
     // temp
-    GRect rect_classic_dayw = {{2, 0 + steel_y_offset + 2}, {RULER_XOFFSET, 20}};
+    GRect rect_classic_dayw = {{2, 0 + steel_y_offset + 2},
+                               {RULER_XOFFSET, 20}};
     GRect rect_classic_day = {{0, 8 + steel_y_offset + 2}, {RULER_XOFFSET, 30}};
     GRect rect_classic_tmin = {{0, 48 + steel_y_offset}, {RULER_XOFFSET, 20}};
     GRect rect_classic_tmax = {{0, 100 + steel_y_offset}, {RULER_XOFFSET, 20}};
@@ -1136,10 +1137,14 @@ static void update_proc(Layer *layer, GContext *ctx) {
   // Draw gradient overlay last, on top of everything
   if (is_gradiant && !IS_ROUND) {
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
-    GBitmap *s_grad_haut = gbitmap_create_with_resource(RESOURCE_ID_GRADIANT_HAUT);
-    GBitmap *s_grad_bas = gbitmap_create_with_resource(RESOURCE_ID_GRADIANT_BAS);
-    graphics_draw_bitmap_in_rect(ctx, s_grad_haut, GRect(0, steel_y_offset, 144, 21));
-    graphics_draw_bitmap_in_rect(ctx, s_grad_bas, GRect(0, HEIGHT - 20, 144, 20));
+    GBitmap *s_grad_haut =
+        gbitmap_create_with_resource(RESOURCE_ID_GRADIANT_HAUT);
+    GBitmap *s_grad_bas =
+        gbitmap_create_with_resource(RESOURCE_ID_GRADIANT_BAS);
+    graphics_draw_bitmap_in_rect(ctx, s_grad_haut,
+                                 GRect(0, steel_y_offset, 144, 21));
+    graphics_draw_bitmap_in_rect(ctx, s_grad_bas,
+                                 GRect(0, HEIGHT - 20, 144, 20));
     gbitmap_destroy(s_grad_haut);
     gbitmap_destroy(s_grad_bas);
   }
