@@ -22,6 +22,10 @@
 
 #define LINE_THICK 3
 
+// Vertical offset for Pebble Steel (screen is physically shifted up in the
+// case)
+#define STEEL_Y_OFFSET 16
+
 // For the gradiant effect, 1/2 pixels, 1/3 and 1/4
 #define GRADIANT 4
 #define GRADIANT_X_OFFSET -1
@@ -350,6 +354,7 @@ static int status_offset_x = 0;
 static int status_offset_y = 0;
 
 static int hour_line_ypos = 84 + YOFFSET;
+static int steel_y_offset = 0;
 
 static char pebble_Lang[20] = " ";
 
@@ -561,30 +566,34 @@ static void update_proc(Layer *layer, GContext *ctx) {
   GBitmap *s_icon;
 
   // DRAW DIAL
-  GRect rect_text_day = {{TEXT_DAY_STATUS_OFFSET_X + status_offset_x,
-                          TEXT_DAY_STATUS_OFFSET_Y + status_offset_y},
-                         {RULER_XOFFSET, 150}};
-  GRect rect_text_dayw = {{TEXT_DAYW_STATUS_OFFSET_X + status_offset_x,
-                           TEXT_DAYW_STATUS_OFFSET_Y + status_offset_y},
-                          {RULER_XOFFSET, 150}};
-  GRect rect_text_month = {{TEXT_MONTH_STATUS_OFFSET_X + status_offset_x,
-                            TEXT_MONTH_STATUS_OFFSET_Y + status_offset_y},
-                           {RULER_XOFFSET, 150}};
+  GRect rect_text_day = {
+      {TEXT_DAY_STATUS_OFFSET_X + status_offset_x,
+       TEXT_DAY_STATUS_OFFSET_Y + status_offset_y + steel_y_offset + 2},
+      {RULER_XOFFSET, 150}};
+  GRect rect_text_dayw = {
+      {TEXT_DAYW_STATUS_OFFSET_X + status_offset_x,
+       TEXT_DAYW_STATUS_OFFSET_Y + status_offset_y + steel_y_offset + 2},
+      {RULER_XOFFSET, 150}};
+  GRect rect_text_month = {
+      {TEXT_MONTH_STATUS_OFFSET_X + status_offset_x,
+       TEXT_MONTH_STATUS_OFFSET_Y + status_offset_y + steel_y_offset},
+      {RULER_XOFFSET, 150}};
   GRect rect_temp = {{TEXT_TEMP_OFFSET_X + status_offset_x,
                       TEXT_TEMP_OFFSET_Y + status_offset_y},
                      {RULER_XOFFSET, 150}};
   GRect rect_tmin = {{TEXT_TMIN_OFFSET_X + status_offset_x,
-                      TEXT_TMIN_OFFSET_Y + status_offset_y},
+                      TEXT_TMIN_OFFSET_Y + status_offset_y + steel_y_offset},
                      {100, 150}};
   GRect rect_tmax = {{TEXT_TMAX_OFFSET_X + status_offset_x,
-                      TEXT_TMAX_OFFSET_Y + status_offset_y},
+                      TEXT_TMAX_OFFSET_Y + status_offset_y + steel_y_offset},
                      {40, 150}};
-  GRect rect_icon = {{ICON_X, ICON_Y + 9}, {35, 35}};
-  GRect rect_icon6 = {{ICON6_X, ICON6_Y + 9}, {35, 35}};
+  GRect rect_icon = {{ICON_X, ICON_Y + 9 + steel_y_offset}, {35, 35}};
+  GRect rect_icon6 = {{ICON6_X, ICON6_Y + 9 + steel_y_offset}, {35, 35}};
   GRect rect_text_hour = {{RULER_XOFFSET + XOFFSET + 5 + hour_offset_x, 0},
                           {100, 100}};
-  GRect rect_bt_disconect = {
-      {ICON_BT_X + status_offset_x, ICON_BT_Y + status_offset_y}, {35, 17}};
+  GRect rect_bt_disconect = {{ICON_BT_X + status_offset_x,
+                              ICON_BT_Y + status_offset_y + steel_y_offset},
+                             {35, 17}};
   ;
 
   int icon_id;
@@ -728,12 +737,15 @@ static void update_proc(Layer *layer, GContext *ctx) {
       snprintf(tmin, sizeof(tmin), "%i", tmin_val);
       snprintf(tmax, sizeof(tmax), "%i", tmax_val);
       if (is_metric)
-        snprintf(weather_temp_char, sizeof(weather_temp_char), "%i°", weather_temp);
+        snprintf(weather_temp_char, sizeof(weather_temp_char), "%i°",
+                 weather_temp);
       else
-        snprintf(weather_temp_char, sizeof(weather_temp_char), "%iF", weather_temp);
+        snprintf(weather_temp_char, sizeof(weather_temp_char), "%iF",
+                 weather_temp);
     } else {
       snprintf(tmin, sizeof(tmin), "%i|%i", tmax_val, tmin_val);
-      snprintf(weather_temp_char, sizeof(weather_temp_char), "%i°", weather_temp);
+      snprintf(weather_temp_char, sizeof(weather_temp_char), "%i°",
+               weather_temp);
     }
   } else {
     snprintf(tmin, sizeof(tmin), "%i", tmin_val);
@@ -760,17 +772,18 @@ static void update_proc(Layer *layer, GContext *ctx) {
       bat = (int)phone_bat * 36 / 100;
       offset = (int)((36 - bat) / 2);
 
-      graphics_fill_rect(
-          ctx,
-          GRect(BAT_PHONE_STATUS_OFFSET_X + offset,
-                BAT_PHONE_STATUS_OFFSET_Y + bat_gradiant_offset + bat_offset,
-                (18 - offset) * 2, 2),
-          0, GCornerNone);
+      graphics_fill_rect(ctx,
+                         GRect(BAT_PHONE_STATUS_OFFSET_X + offset,
+                               BAT_PHONE_STATUS_OFFSET_Y + bat_gradiant_offset +
+                                   bat_offset + steel_y_offset,
+                               (18 - offset) * 2, 2),
+                         0, GCornerNone);
       if (is_phone_charging) {
         graphics_fill_rect(ctx,
                            GRect(BAT_PHONE_STATUS_OFFSET_X + 17,
                                  BAT_PHONE_STATUS_OFFSET_Y + 2 +
-                                     bat_gradiant_offset + bat_offset,
+                                     bat_gradiant_offset + bat_offset +
+                                     steel_y_offset,
                                  2, 3),
                            0, GCornerNone);
       }
@@ -779,12 +792,12 @@ static void update_proc(Layer *layer, GContext *ctx) {
     // Batterie chargement
     if (is_charging) {
       graphics_context_set_fill_color(ctx, color_temp);
-      graphics_fill_rect(
-          ctx,
-          GRect(BAT_STATUS_OFFSET_X + 17,
-                BAT_STATUS_OFFSET_Y - 3 + bat_gradiant_offset + bat_offset, 2,
-                3),
-          0, GCornerNone);
+      graphics_fill_rect(ctx,
+                         GRect(BAT_STATUS_OFFSET_X + 17,
+                               BAT_STATUS_OFFSET_Y - 3 + bat_gradiant_offset +
+                                   bat_offset + steel_y_offset,
+                               2, 3),
+                         0, GCornerNone);
     }
 
     bat = (int)battery_level * 36 / 100;
@@ -793,32 +806,32 @@ static void update_proc(Layer *layer, GContext *ctx) {
     // APP_LOG(APP_LOG_LEVEL_INFO,"phone bat %d",phone_bat);
 
     if ((is_connected) || (IS_HOUR_FICTIVE))
-      graphics_fill_rect(
-          ctx,
-          GRect(BAT_STATUS_OFFSET_X + offset,
-                BAT_STATUS_OFFSET_Y + bat_gradiant_offset + bat_offset,
-                (18 - offset) * 2, 2),
-          0, GCornerNone);
+      graphics_fill_rect(ctx,
+                         GRect(BAT_STATUS_OFFSET_X + offset,
+                               BAT_STATUS_OFFSET_Y + bat_gradiant_offset +
+                                   bat_offset + steel_y_offset,
+                               (18 - offset) * 2, 2),
+                         0, GCornerNone);
 
     if (is_connected) {
-      graphics_fill_rect(
-          ctx,
-          GRect(BAT_STATUS_OFFSET_X + 9,
-                BAT_STATUS_OFFSET_Y + 2 + bat_gradiant_offset + bat_offset, 2,
-                3),
-          0, GCornerNone);
-      graphics_fill_rect(
-          ctx,
-          GRect(BAT_STATUS_OFFSET_X + 17,
-                BAT_STATUS_OFFSET_Y + 2 + bat_gradiant_offset + bat_offset, 2,
-                3),
-          0, GCornerNone);
-      graphics_fill_rect(
-          ctx,
-          GRect(BAT_STATUS_OFFSET_X + 25,
-                BAT_STATUS_OFFSET_Y + 2 + bat_gradiant_offset + bat_offset, 2,
-                3),
-          0, GCornerNone);
+      graphics_fill_rect(ctx,
+                         GRect(BAT_STATUS_OFFSET_X + 9,
+                               BAT_STATUS_OFFSET_Y + 2 + bat_gradiant_offset +
+                                   bat_offset + steel_y_offset,
+                               2, 3),
+                         0, GCornerNone);
+      graphics_fill_rect(ctx,
+                         GRect(BAT_STATUS_OFFSET_X + 17,
+                               BAT_STATUS_OFFSET_Y + 2 + bat_gradiant_offset +
+                                   bat_offset + steel_y_offset,
+                               2, 3),
+                         0, GCornerNone);
+      graphics_fill_rect(ctx,
+                         GRect(BAT_STATUS_OFFSET_X + 25,
+                               BAT_STATUS_OFFSET_Y + 2 + bat_gradiant_offset +
+                                   bat_offset + steel_y_offset,
+                               2, 3),
+                         0, GCornerNone);
     }
 
   } else if (IS_ROUND) {
@@ -883,11 +896,12 @@ static void update_proc(Layer *layer, GContext *ctx) {
 
 #else
   if (!IS_ROUND && is_classic) {
-    // Classic view: day of week + date at top, then tmin, icon, tmax, current temp
-    GRect rect_classic_dayw = {{2, 0}, {RULER_XOFFSET, 20}};
-    GRect rect_classic_day = {{0, 8}, {RULER_XOFFSET, 30}};
-    GRect rect_classic_tmin = {{0, 48}, {RULER_XOFFSET, 20}};
-    GRect rect_classic_tmax = {{0, 100}, {RULER_XOFFSET, 20}};
+    // Classic view: day of week + date at top, then tmin, icon, tmax, current
+    // temp
+    GRect rect_classic_dayw = {{2, 0 + steel_y_offset + 2}, {RULER_XOFFSET, 20}};
+    GRect rect_classic_day = {{0, 8 + steel_y_offset + 2}, {RULER_XOFFSET, 30}};
+    GRect rect_classic_tmin = {{0, 48 + steel_y_offset}, {RULER_XOFFSET, 20}};
+    GRect rect_classic_tmax = {{0, 100 + steel_y_offset}, {RULER_XOFFSET, 20}};
     GRect rect_classic_temp = {{0, 136}, {RULER_XOFFSET, 32}};
 
     graphics_context_set_text_color(ctx, color_temp);
@@ -1061,7 +1075,8 @@ static void update_proc(Layer *layer, GContext *ctx) {
               inv_offset = 30;
 
             rect_text_hour.origin.y =
-                (int)(HEIGHT / 2 + inv_offset - rect_text_hour.origin.y);
+                (int)(HEIGHT / 2 + steel_y_offset + inv_offset -
+                      rect_text_hour.origin.y);
           }
           graphics_draw_text(ctx, hour_text, fontbig, rect_text_hour,
                              GTextOverflowModeWordWrap, GTextAlignmentCenter,
@@ -1085,8 +1100,9 @@ static void update_proc(Layer *layer, GContext *ctx) {
     int cx;
     for (cx = x_start; cx < x_end; cx += dash_len + gap_len) {
       int w = (cx + dash_len < x_end) ? dash_len : (x_end - cx);
-      graphics_fill_rect(ctx, GRect(cx, HEIGHT / 2 - 1, w, segment_thickness),
-                         0, GCornerNone);
+      graphics_fill_rect(
+          ctx, GRect(cx, HEIGHT / 2 - 1 + steel_y_offset, w, segment_thickness),
+          0, GCornerNone);
     }
   }
 
@@ -1120,9 +1136,12 @@ static void update_proc(Layer *layer, GContext *ctx) {
   // Draw gradient overlay last, on top of everything
   if (is_gradiant && !IS_ROUND) {
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
-    GBitmap *s_gradiant = gbitmap_create_with_resource(RESOURCE_ID_GRADIANT);
-    graphics_draw_bitmap_in_rect(ctx, s_gradiant, GRect(0, 0, WIDTH, HEIGHT));
-    gbitmap_destroy(s_gradiant);
+    GBitmap *s_grad_haut = gbitmap_create_with_resource(RESOURCE_ID_GRADIANT_HAUT);
+    GBitmap *s_grad_bas = gbitmap_create_with_resource(RESOURCE_ID_GRADIANT_BAS);
+    graphics_draw_bitmap_in_rect(ctx, s_grad_haut, GRect(0, steel_y_offset, 144, 21));
+    graphics_draw_bitmap_in_rect(ctx, s_grad_bas, GRect(0, HEIGHT - 20, 144, 20));
+    gbitmap_destroy(s_grad_haut);
+    gbitmap_destroy(s_grad_bas);
   }
 }
 
@@ -1883,6 +1902,17 @@ static void init_var() {
   // select_screen, is_30mn, is_gps, utc, is_metric, is_vibration, is_bw_icon);
 
   snprintf(pebble_Lang, sizeof(pebble_Lang), "%s", i18n_get_system_locale());
+
+// Detect Pebble Steel and apply vertical offset to compensate
+// for the screen being physically shifted upward in the case
+#if !defined(PBL_ROUND)
+  if (watch_info_get_model() == WATCH_INFO_MODEL_PEBBLE_STEEL) {
+    steel_y_offset = STEEL_Y_OFFSET;
+  } else {
+    steel_y_offset = 0;
+  }
+  hour_line_ypos = 84 + YOFFSET + steel_y_offset;
+#endif
 
   BatteryChargeState charge_state = battery_state_service_peek();
   is_charging = charge_state.is_charging;

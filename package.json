@@ -341,8 +341,14 @@
                     "type": "bitmap"
                 },
                 {
-                    "file": "images/GRADIANT",
-                    "name": "GRADIANT",
+                    "file": "images/GRADIANT_HAUT",
+                    "name": "GRADIANT_HAUT",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                },
+                {
+                    "file": "images/GRADIANT_BAS",
+                    "name": "GRADIANT_BAS",
                     "targetPlatforms": null,
                     "type": "bitmap"
                 },
