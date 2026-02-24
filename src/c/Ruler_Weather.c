@@ -1148,6 +1148,12 @@ static void update_proc(Layer *layer, GContext *ctx) {
     gbitmap_destroy(s_grad_haut);
     gbitmap_destroy(s_grad_bas);
   }
+
+  // Pebble Steel: black bar at very top, drawn last to cover everything
+  if (steel_y_offset > 0) {
+    graphics_context_set_fill_color(ctx, GColorBlack);
+    graphics_fill_rect(ctx, GRect(0, 0, WIDTH, steel_y_offset), 0, GCornerNone);
+  }
 }
 
 static void handle_tick(struct tm *cur, TimeUnits units_changed) {
