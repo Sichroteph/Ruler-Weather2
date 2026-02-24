@@ -596,8 +596,6 @@ static void update_proc(Layer *layer, GContext *ctx) {
   // icon_id6 = build_icon("01d");
 
 
-  //  APP_LOG(APP_LOG_LEVEL_INFO, "icone %s", icon);  
-
   // Draw background
   graphics_context_set_fill_color(ctx, color_right);
   graphics_fill_rect(ctx, GRect(RULER_XOFFSET, 0, 160, 180), 0, GCornerNone);

@@ -1,779 +1,380 @@
 // force la météo sur l'émulateur
 var m_b_Debug=false;
 
-var myAPIKey = '';
-var myGoogleAPIKey = '';
 var phone_bat=100;
 
+// Current position storage
+var current_Latitude;
+var current_Longitude;
 
-function windBearing(wind){
-  if ((wind>=337)||(wind<22))
-    return "N";
-  if ((wind>=22)&&(wind<67))
-    return "NE";
-  if ((wind>=67)&&(wind<112))
-    return "E";
-  if ((wind>=112)&&(wind<157))
-    return "SE";
-  if ((wind>=157)&&(wind<202))
-    return "S";
-  if ((wind>=202)&&(wind<247))
-    return "SW";
-  if ((wind>=247)&&(wind<292))
-    return "W";  
-  if ((wind>=292)&&(wind<337))
-    return "NW";
+// Weather fetch retry configuration
+var weatherRetryCount = 0;
+var weatherMaxRetries = 3;
+var weatherRetryDelayMs = 10000;
+var weatherRetryTimer = null;
+var weatherXhrPending = false;
 
-  return"?";
+function celsiusToFahrenheit(celsius) {
+  return Math.round((celsius * 9 / 5) + 32);
 }
 
+// WMO Weather Code to icon mapping compatible with Ruler Weather
+// Maps to icon strings that build_icon() in C already supports
+function wmoCodeToIcon(wmoCode, isNight) {
+  switch (wmoCode) {
+    case 0:  // Clear sky
+      return isNight ? 'clear-night' : 'clear-day';
+    case 1:  // Mainly clear
+      return isNight ? '02n' : '02d';
+    case 2:  // Partly cloudy
+      return isNight ? 'partly-cloudy-night' : 'partly-cloudy-day';
+    case 3:  // Overcast
+      return 'cloudy';
+    case 45: // Fog
+    case 48: // Depositing rime fog
+      return 'fog';
+    case 51: // Drizzle: Light
+    case 53: // Drizzle: Moderate
+    case 55: // Drizzle: Dense
+      return 'rain';
+    case 56: // Freezing Drizzle: Light
+    case 57: // Freezing Drizzle: Dense
+      return 'sleet';
+    case 61: // Rain: Slight
+      return isNight ? '10n' : '10d';
+    case 63: // Rain: Moderate
+    case 65: // Rain: Heavy
+      return 'rain';
+    case 66: // Freezing Rain: Light
+    case 67: // Freezing Rain: Heavy
+      return 'sleet';
+    case 71: // Snow fall: Slight
+    case 73: // Snow fall: Moderate
+    case 75: // Snow fall: Heavy
+    case 77: // Snow grains
+      return 'snow';
+    case 80: // Rain showers: Slight
+    case 81: // Rain showers: Moderate
+    case 82: // Rain showers: Violent
+      return isNight ? '10n' : '10d';
+    case 85: // Snow showers: Slight
+    case 86: // Snow showers: Heavy
+      return 'snow';
+    case 95: // Thunderstorm: Slight or moderate
+    case 96: // Thunderstorm with slight hail
+    case 99: // Thunderstorm with heavy hail
+      return 'thunderstorm';
+    default:
+      return isNight ? 'partly-cloudy-night' : 'partly-cloudy-day';
+  }
+}
 
-var xhrRequest = function (url, type, callback) {
+// Check if current hour is night time (between 21:00 and 6:00)
+function isNightTime(hour) {
+  return hour >= 21 || hour < 6;
+}
+
+var xhrRequest = function (url, type, callback, errorCallback) {
   var xhr = new XMLHttpRequest();
+  
+  xhr.timeout = 15000;
+  
   xhr.onload = function () {
     callback(this.responseText);
   };
+  
+  xhr.onerror = function (err) {
+    console.error('XHR failed', err);
+    if (errorCallback) errorCallback('network_error');
+  };
+  
+  xhr.ontimeout = function () {
+    console.error('XHR timeout after 15s');
+    if (errorCallback) errorCallback('timeout');
+  };
+  
   xhr.open(type, url);
   xhr.send();
 };
 
-function getForecast_owm(url, url2) {
-  var tmax;
-  var tmin;
-  var temp1;
-  var temp2;
-  var temp3;
-  var temp4;
-  var temp5;
-
-  var h1;
-  var h2;
-  var h3;
-  var hour0;
-  var hour1;
-  var hour2;
-  var hour3; 
-  var rain1;
-  var rain2;
-  var rain3;
-  var rain4;
-  var rain5;
-  var icon1;
-  var icon2;
-  var icon3;
-  var wind1;
-  var wind2;
-  var wind3;
-
-  // Forecasting data
-
-
-  // console.log("owm mode " + url2);  
-
-
-  // Send request to OpenWeatherMap
-
-
-
-  xhrRequest(url2, 'GET', 
-             function(responseText) {
-
-               // responseText contains a JSON object with weather info
-
-               var responseFixed = responseText.replace(/3h/g,"hh");
-               var json2 = JSON.parse(responseFixed);  
-               // console.log("json2 is " + JSON.stringify(json2));
-
-
-               var t = json2.list[0].main.temp;
-               tmax = t;
-               tmin = t;
-
-               for(var i=1;i<12;i++){
-                 if (json2.list[i].main.temp>tmax)
-                   tmax = json2.list[i].main.temp;
-                 if (json2.list[i].main.temp<tmin)
-                   tmin = json2.list[i].main.temp;
-               }
-
-               temp1=Math.round(json2.list[0].main.temp);
-               //  console.log("temp1 " + temp1);
-               temp2=Math.round(json2.list[1].main.temp);
-               temp3=Math.round(json2.list[2].main.temp);
-               temp4=Math.round(json2.list[3].main.temp);
-               temp5=Math.round(json2.list[4].main.temp);
-
-
-               h1=json2.list[1].dt;
-               h2=json2.list[2].dt;
-               h3=json2.list[3].dt;
-
-
-               var date1=new Date(h1*1000);
-               var date2=new Date(h2*1000);
-               var date3=new Date(h3*1000);
-
-
-               hour1=date1.getHours()+"";
-               hour2=date2.getHours()+"";
-               hour3=date3.getHours()+"";
-               //  console.log("hour1 " + hour1);
-               icon1 = json2.list[1].weather[0].icon;
-               icon2 = json2.list[2].weather[0].icon;
-               icon3 = json2.list[3].weather[0].icon;
-
-               if (json2.list[0].rain===undefined){
-                 rain1=0;
-               }
-               else{
-                 rain1=json2.list[0].rain.hh;
-                 if (rain1>-666)
-                   rain1=Math.round(rain1*10);
-                 else{
-                   rain1=0;
-                 }
-               }
-
-               if (json2.list[1].rain===undefined){
-                 rain2=0;
-               }
-               else{
-                 rain2=json2.list[1].rain.hh;
-                 if (rain2>-666)
-                   rain2=Math.round(rain2*10);
-                 else{
-
-                   rain2=0;
-                 }
-               }
-               if (json2.list[2].rain===undefined){
-                 rain3=0;
-               }
-               else{
-                 rain3=json2.list[2].rain.hh;
-                 if (rain3>-666)
-                   rain3=Math.round(rain3*10);
-                 else{
-
-                   rain3=0;
-                 }
-               }
-               if (json2.list[3].rain===undefined){
-                 rain4=0;
-               }
-               else{
-                 rain4=json2.list[3].rain.hh;
-                 if (rain4>-666)
-                   rain4=Math.round(rain4*10);
-                 else{
-
-                   rain4=0;
-                 }
-               }
-               if (json2.list[4].rain===undefined){
-                 rain5=0;
-               }
-               else{
-                 rain5=json2.list[4].rain.hh;
-                 if (rain5>-666)
-                   rain5=Math.round(rain5*10);
-                 else{
-
-                   rain5=0;
-                 }
-               }
-
-               var units = localStorage.getItem(152);
-
-               if(units==1){
-                 wind1=Math.round((json2.list[1].wind.speed)/2*3.6);
-                 wind2=Math.round((json2.list[2].wind.speed)/2*3.6);
-                 wind3=Math.round((json2.list[3].wind.speed)/2*3.6);
-
-               }
-               else{
-                 wind1=Math.round(json2.list[1].wind.speed*3.6);
-                 wind2=Math.round(json2.list[2].wind.speed*3.6);
-                 wind3=Math.round(json2.list[3].wind.speed*3.6);
-
-               }
-
-               tmax=Math.round(tmax);
-               tmin=Math.round(tmin);
-               //console.log("tmax est " + tmax);
-
-               console.log("url is " + url);
-               // Send request to OpenWeatherMap
-               xhrRequest(url, 'GET', 
-                          function(responseText) {
-                            // responseText contains a JSON object with weather info
-                            var json = JSON.parse(responseText);
-
-                            var location = json.name;
-
-                            var temperature;
-
-
-                            temperature = Math.round(json.main.temp);
-
-
-
-
-
-                            var wind = Math.round(json.wind.speed);
-
-
-
-
-                            var sunrise = json.sys.sunrise;
-
-                            var sunset = json.sys.sunset;
-
-
-                            var dsunrise=new Date(sunrise*1000);
-                            var dsunset=new Date(sunset*1000);
-                            var sunrise_hours = dsunrise.getHours();
-                            var sunrise_minutes = "0"+ dsunrise.getMinutes();
-                            var sunset_hours = dsunset.getHours();
-                            var sunset_minutes = "0"+ dsunset.getMinutes();
-
-
-                            var icon = json.weather[0].icon;
-
-                            // testenvoi layer
-                            // Assemble dictionary using our keys
-                            var dictionary = {
-                              "KEY_TEMPERATURE": temperature,
-
-                              "KEY_WIND_SPEED" : wind,
-                              "KEY_ICON" : icon,
-
-                              "KEY_TMIN" : tmin, 
-                              "KEY_TMAX" : tmax,
-
-
-                              "KEY_FORECAST_H1" : hour1,
-                              "KEY_FORECAST_H2" : hour2,
-                              "KEY_FORECAST_H3" : hour3,
-                              "KEY_FORECAST_WIND1" : wind1,
-                              "KEY_FORECAST_WIND2" : wind2,
-                              "KEY_FORECAST_WIND3" : wind3,
-
-
-                              "KEY_FORECAST_TEMP1" : temp1,
-                              "KEY_FORECAST_TEMP2" : temp2,
-                              "KEY_FORECAST_TEMP3" : temp3,
-                              "KEY_FORECAST_TEMP4" : temp4,
-                              "KEY_FORECAST_TEMP5" : temp5,
-
-                              "KEY_FORECAST_RAIN1" : rain1,
-                              "KEY_FORECAST_RAIN2" : rain2,
-                              "KEY_FORECAST_RAIN3" : rain3,
-                              "KEY_FORECAST_RAIN4" : rain4,
-
-                              "KEY_FORECAST_ICON1" : icon1,
-                              "KEY_FORECAST_ICON2" : icon2,
-                              "KEY_FORECAST_ICON3" : icon3,
-
-                              "KEY_LOCATION" : location,
-
-                            }; 
-
-                            // Send to Pebble
-                            Pebble.sendAppMessage(dictionary,
-                                                  function(e) {
-                                                    //  console.log("Weather info sent to Pebble successfully!");
-                                                  },
-                                                  function(e) {
-                                                    //  console.log("Error sending weather info to Pebble!");
-                                                  }
-                                                 );
-                          }      
-                         );
-             }
-            );
-
+// Called when weather fetch succeeds - reset retry state
+function onWeatherFetchSuccess() {
+  weatherRetryCount = 0;
+  weatherXhrPending = false;
+  if (weatherRetryTimer) {
+    clearTimeout(weatherRetryTimer);
+    weatherRetryTimer = null;
+  }
+  console.log("Weather fetch successful");
 }
 
-function getForecast_wu() {
-  //console.log("getForecast");
-  var tmax;
-  var tmin;
-  var temp1;
-  var temp2;
-  var temp3;
-  var temp4;
-  var temp5;
-
-  var h1;
-  var h2;
-  var h3;
-
-  var hour1;
-  var hour2;
-  var hour3; 
-
-  var rain1;
-  var rain2;
-  var rain3;
-  var rain4;
-  var rain5;
-
-
-  var icon1;
-  var icon2;
-  var icon3;
-
-  var wind1;
-  var wind2;
-  var wind3;
-
-
-  var coordinates = localStorage.getItem(156);
-  var units = localStorage.getItem(152);
-
-  var humidity;
-
-  var units_s;
-  if(units==1){
-    units_s="us";
-  }
-  else{
-    units_s="ca";
-  }
-  // Send request to forecast
-
-
-
-  var api_key;
-
-  api_key= '';
+// Called when weather fetch fails - schedule retry if under limit
+function onWeatherFetchError(reason) {
+  weatherXhrPending = false;
+  weatherRetryCount++;
+  console.log("Weather fetch failed (" + reason + "), retry " + weatherRetryCount + "/" + weatherMaxRetries);
   
-
-
-  var url = 'https://api.forecast.io/forecast/'+api_key+'/'+coordinates+'?units='+units_s; 
-  url=url.replace(/"/g,"");
-
-
-
-  xhrRequest(url, 'GET', 
-             function(responseText) {
-               //       console.log("responseText");
-               var units_t;
-               var location = localStorage.getItem(154);
-               var graph = localStorage.getItem(155);
-
-               var json = JSON.parse(responseText);
-
-
-
-               // responseText contains a JSON object with weather info
-
-               tmax = Math.round(json.daily.data[0].temperatureMax);
-               tmin = Math.round(json.daily.data[0].temperatureMin);
-
-               //    console.log("tmax " +tmax);
-
-               //    console.log("tmin  " +tmin);
-
-               temp1=Math.round(json.hourly.data[0].temperature);
-               temp2=Math.round(json.hourly.data[3].temperature);
-               temp3=Math.round(json.hourly.data[6].temperature);
-               temp4=Math.round(json.hourly.data[9].temperature);
-               temp5=Math.round(json.hourly.data[12].temperature);
-
-
-
-               h1=json.hourly.data[3].time;
-               h2=json.hourly.data[6].time;
-               h3=json.hourly.data[9].time;
-
-
-
-               a = new Date((h1)*1000);
-               hour1 = a.getHours()+"";
-
-               a = new Date((h2)*1000);
-               hour2 = a.getHours()+"";
-
-               a = new Date((h3)*1000);
-               hour3 = a.getHours()+"";
-
-
-
-               //     console.log("hours "+hour1+" "+hour2+" "+hour3+" ");
-
-
-               if (units==1){
-                 wind1=Math.round(json.hourly.data[3].windSpeed*1.55);
-                 wind2=Math.round(json.hourly.data[6].windSpeed*1.55);
-                 wind3=Math.round(json.hourly.data[9].windSpeed*1.55);
-
-               }
-               else{
-
-                 wind1=Math.round(json.hourly.data[3].windSpeed);
-                 wind2=Math.round(json.hourly.data[6].windSpeed);
-                 wind3=Math.round(json.hourly.data[9].windSpeed);
-               }
-
-               // console.log("json.hourly.data[9].windBearing "+json.hourly.data[9].windBearing);
-
-
-               icon1 = json.hourly.data[3].icon;
-               icon2 = json.hourly.data[6].icon;
-               icon3 = json.hourly.data[9].icon;
-
-
-               rain1=json.hourly.data[0].precipIntensity*20;
-
-               rain2=json.hourly.data[3].precipIntensity*20;
-
-               rain3=json.hourly.data[6].precipIntensity*20;
-
-               rain4=json.hourly.data[9].precipIntensity*20;
-
-               rain5=json.hourly.data[12].precipIntensity*20;
-
-
-
-               if(units==1){
-                 rain1=Math.round(rain1*25.4);
-
-                 rain2=Math.round(rain2*25.4);
-
-                 rain3=Math.round(rain3*25.4);
-
-                 rain4=Math.round(rain4*25.4);
-
-                 rain5=Math.round(rain5*25.4);
-
-               }
-              // console.log
-
-               var temperature;
-
-
-
-               temperature = Math.round(json.currently.temperature);
-               humidity=  Math.round(json.currently.humidity*100)+"%";  
-               //  console.log("json.hourly.data[9].windBearing "+json.hourly.data[9].windBearing);
-
-
-
-
-
-               var units_w;
-               if(units==1){
-                 units_w="M/H";
-               }
-               else{
-                 units_w="KM/H";
-               }
-               var wind = Math.round(json.currently.windSpeed)+units_w;
-
-
-
-               var sunrise = json.daily.data[0].sunriseTime;
-               var sunset = json.daily.data[0].sunsetTime;
-
-               var dsunrise=new Date(sunrise*1000);
-               var dsunset=new Date(sunset*1000);
-
-               var sunrise_hours = dsunrise.getHours();
-               var sunrise_minutes = "0"+ dsunrise.getMinutes();
-               var sunrise_string ;
-               var sunset_hours = dsunset.getHours();
-               var sunset_minutes = "0"+ dsunset.getMinutes();
-               var sunset_string;
-               if (units==1){
-                 if(sunrise_hours>12){
-                   sunrise_hours=sunrise_hours%12;
-                   sunrise_string = sunrise_hours+":"+sunrise_minutes.substr(-2)+"pm";
-                 }
-                 else{
-                   sunrise_string = sunrise_hours+":"+sunrise_minutes.substr(-2)+"am";
-                 }
-
-               }
-               else{
-                 sunrise_string = sunrise_hours+":"+sunrise_minutes.substr(-2);
-               }
-
-               if (units==1){
-                 if(sunset_hours>12){
-                   sunset_hours=sunset_hours%12;
-                   sunset_string = sunset_hours+":"+sunset_minutes.substr(-2)+"pm";
-                 }
-                 else{
-                   sunset_string = sunset_hours+":"+sunset_minutes.substr(-2)+"am";
-                 }
-               }
-               else
-               {
-                 sunset_string = sunset_hours+":"+sunset_minutes.substr(-2);
-               }
-
-               var icon = json.currently.icon;
-
-
-               // force int
-               graph++;
-               graph--;
-               location = location.replace(/"/g,"");
-
-
-
-
-               // testenvoi layer
-               // Assemble dictionary using our keys
-               var dictionary = {
-                 "KEY_TEMPERATURE": temperature,
-
-                 "KEY_WIND_SPEED" : wind,
-                 "KEY_ICON" : icon,
-
-                 "KEY_TMIN" : tmin, 
-                 "KEY_TMAX" : tmax,
-
-
-                 "KEY_FORECAST_H1" : hour1,
-                 "KEY_FORECAST_H2" : hour2,
-                 "KEY_FORECAST_H3" : hour3,
-                 "KEY_FORECAST_WIND1" : wind1,
-                 "KEY_FORECAST_WIND2" : wind2,
-                 "KEY_FORECAST_WIND3" : wind3,
-
-
-                 "KEY_FORECAST_TEMP1" : temp1,
-                 "KEY_FORECAST_TEMP2" : temp2,
-                 "KEY_FORECAST_TEMP3" : temp3,
-                 "KEY_FORECAST_TEMP4" : temp4,
-                 "KEY_FORECAST_TEMP5" : temp5,
-
-                 "KEY_FORECAST_RAIN1" : rain1,
-                 "KEY_FORECAST_RAIN2" : rain2,
-                 "KEY_FORECAST_RAIN3" : rain3,
-                 "KEY_FORECAST_RAIN4" : rain4,
-
-                 "KEY_FORECAST_ICON1" : icon1,
-                 "KEY_FORECAST_ICON2" : icon2,
-                 "KEY_FORECAST_ICON3" : icon3,
-
-                 "KEY_LOCATION" : location,
-
-
-               }; 
-
-
-               // Send to Pebble
-               Pebble.sendAppMessage(dictionary,
-                                     function(e) {
-                                       //  console.log("Weather info sent to Pebble successfully!");
-                                     },
-                                     function(e) {
-                                       //  console.log("Error sending weather info to Pebble!");
-                                     }
-                                    );
-             }      
-            );
+  if (weatherRetryCount < weatherMaxRetries) {
+    console.log("Scheduling retry in " + weatherRetryDelayMs + "ms");
+    weatherRetryTimer = setTimeout(function () {
+      weatherRetryTimer = null;
+      getForecast();
+    }, weatherRetryDelayMs);
+  } else {
+    console.log("Max retries reached, giving up until next scheduled refresh");
+    weatherRetryCount = 0;
+  }
 }
 
-
-function getWeatherCoord(){
-  //console.log("getWeatherCoord");
-  var location=" ";
-
-  var coordinates = localStorage.getItem(156);
-  //console.log("1");
-  var urlGoogle = 'https://maps.googleapis.com/maps/api/geocode/json?latlng='+coordinates+'&key='+myGoogleAPIKey;
-  //console.log("2");
-  urlGoogle=urlGoogle.replace(/"/g,"");
-  //console.log("3");
-  urlGoogle=urlGoogle.replace(/ /g,"+"); 
- // console.log("4");
- // console.log('google url: ' + urlGoogle);
-
-
-
-
-  xhrRequest(urlGoogle, 'GET', 
-             function(responseText) {
-             //  console.log("xhrRequest(urlGoogle,");
-               var json = JSON.parse(responseText);
-               location = json.results[0].formatted_address;
-               localStorage.setItem(154, JSON.stringify(location));
-               //  console.log('location: ' + location);
-               getForecast_wu();
-             });
-
+// Process Open-Meteo API response
+function processOpenMeteoResponse(responseText) {
+  var json = JSON.parse(responseText);
+  var hourly = json.hourly;
+  var units = localStorage.getItem(152);
+  
+  // Current conditions (first hour in forecast)
+  var now = new Date();
+  var currentHour = now.getHours();
+  var isNight = isNightTime(currentHour);
+  
+  // Calculate current hour offset in API data
+  var hourOffset = currentHour;
+  
+  var currentTemp = hourly.temperature_2m[hourOffset];
+  var currentWindSpeed = hourly.wind_gusts_10m[hourOffset];
+  var currentWmoCode = hourly.weather_code[hourOffset];
+  var icon = wmoCodeToIcon(currentWmoCode, isNight);
+  
+  // Calculate min/max for next 24 hours
+  var tmin = 1000;
+  var tmax = -1000;
+  for (var i = hourOffset; i <= hourOffset + 24 && i < hourly.temperature_2m.length; i++) {
+    var temp = hourly.temperature_2m[i];
+    if (temp < tmin) tmin = temp;
+    if (temp > tmax) tmax = temp;
+  }
+  
+  var temperature = currentTemp;
+  
+  if (units == 1) {
+    temperature = celsiusToFahrenheit(temperature);
+    tmin = celsiusToFahrenheit(tmin);
+    tmax = celsiusToFahrenheit(tmax);
+  } else {
+    temperature = Math.round(temperature);
+    tmin = Math.round(tmin);
+    tmax = Math.round(tmax);
+  }
+  
+  temperature = Math.round(temperature);
+  tmax = Math.round(tmax);
+  tmin = Math.round(tmin);
+  
+  // Wind speed conversion
+  var wind;
+  if (units == 1) {
+    // Convert km/h to mph
+    wind = Math.round(currentWindSpeed * 0.621371);
+  } else {
+    // Keep in km/h
+    wind = Math.round(currentWindSpeed);
+  }
+  
+  // Extract hourly forecast data (every 3 hours: +0, +3, +6, +9)
+  var temp1, temp2, temp3, temp4, temp5;
+  var hour1, hour2, hour3;
+  var icon1, icon2, icon3;
+  var wind1, wind2, wind3;
+  var rain1, rain2, rain3, rain4, rain5;
+  
+  // Calculate indices for +0, +3, +6, +9, +12 hours
+  var idx0 = hourOffset;
+  var idx1 = hourOffset + 3;
+  var idx2 = hourOffset + 6;
+  var idx3 = hourOffset + 9;
+  var idx4 = hourOffset + 12;
+  
+  // Temperatures
+  temp1 = hourly.temperature_2m[idx0];
+  temp2 = hourly.temperature_2m[idx1];
+  temp3 = hourly.temperature_2m[idx2];
+  temp4 = hourly.temperature_2m[idx3];
+  temp5 = hourly.temperature_2m[idx4];
+  
+  if (units == 1) {
+    temp1 = celsiusToFahrenheit(temp1);
+    temp2 = celsiusToFahrenheit(temp2);
+    temp3 = celsiusToFahrenheit(temp3);
+    temp4 = celsiusToFahrenheit(temp4);
+    temp5 = celsiusToFahrenheit(temp5);
+  } else {
+    temp1 = Math.round(temp1);
+    temp2 = Math.round(temp2);
+    temp3 = Math.round(temp3);
+    temp4 = Math.round(temp4);
+    temp5 = Math.round(temp5);
+  }
+  
+  // Hours (local time)
+  hour1 = ((currentHour + 3) % 24) + "";
+  hour2 = ((currentHour + 6) % 24) + "";
+  hour3 = ((currentHour + 9) % 24) + "";
+  
+  // Icons for forecast hours
+  icon1 = wmoCodeToIcon(hourly.weather_code[idx1], isNightTime((currentHour + 3) % 24));
+  icon2 = wmoCodeToIcon(hourly.weather_code[idx2], isNightTime((currentHour + 6) % 24));
+  icon3 = wmoCodeToIcon(hourly.weather_code[idx3], isNightTime((currentHour + 9) % 24));
+  
+  console.log("Icons: main=" + icon + " wmo=" + currentWmoCode + " icon1=" + icon1 + " icon2=" + icon2 + " icon3=" + icon3);
+  console.log("Temp=" + temperature + " wind=" + wind + " tmin=" + tmin + " tmax=" + tmax);
+  
+  // Wind speed for forecast hours
+  if (units == 1) {
+    wind1 = Math.round(hourly.wind_gusts_10m[idx1] * 0.621371);
+    wind2 = Math.round(hourly.wind_gusts_10m[idx2] * 0.621371);
+    wind3 = Math.round(hourly.wind_gusts_10m[idx3] * 0.621371);
+  } else {
+    wind1 = Math.round(hourly.wind_gusts_10m[idx1]);
+    wind2 = Math.round(hourly.wind_gusts_10m[idx2]);
+    wind3 = Math.round(hourly.wind_gusts_10m[idx3]);
+  }
+  
+  // Precipitation (scaled by 10 for compatibility)
+  rain1 = Math.round((hourly.precipitation[idx0] || 0) * 10);
+  rain2 = Math.round((hourly.precipitation[idx1] || 0) * 10);
+  rain3 = Math.round((hourly.precipitation[idx2] || 0) * 10);
+  rain4 = Math.round((hourly.precipitation[idx3] || 0) * 10);
+  rain5 = Math.round((hourly.precipitation[idx4] || 0) * 10);
+  
+  // Get location from localStorage if available
+  var location = localStorage.getItem(154);
+  if (location) {
+    location = location.replace(/"/g, "");
+  } else {
+    location = "GPS";
+  }
+  
+  // Assemble dictionary using Ruler Weather keys
+  var dictionary = {
+    "KEY_TEMPERATURE": temperature,
+    "KEY_WIND_SPEED": wind,
+    "KEY_ICON": icon,
+    "KEY_TMIN": tmin,
+    "KEY_TMAX": tmax,
+    "KEY_FORECAST_H1": hour1,
+    "KEY_FORECAST_H2": hour2,
+    "KEY_FORECAST_H3": hour3,
+    "KEY_FORECAST_WIND1": wind1,
+    "KEY_FORECAST_WIND2": wind2,
+    "KEY_FORECAST_WIND3": wind3,
+    "KEY_FORECAST_TEMP1": temp1,
+    "KEY_FORECAST_TEMP2": temp2,
+    "KEY_FORECAST_TEMP3": temp3,
+    "KEY_FORECAST_TEMP4": temp4,
+    "KEY_FORECAST_TEMP5": temp5,
+    "KEY_FORECAST_RAIN1": rain1,
+    "KEY_FORECAST_RAIN2": rain2,
+    "KEY_FORECAST_RAIN3": rain3,
+    "KEY_FORECAST_RAIN4": rain4,
+    "KEY_FORECAST_ICON1": icon1,
+    "KEY_FORECAST_ICON2": icon2,
+    "KEY_FORECAST_ICON3": icon3,
+    "KEY_LOCATION": location,
+  };
+  
+  // Send to Pebble
+  Pebble.sendAppMessage(dictionary,
+    function(e) {
+      console.log("Weather info sent to Pebble successfully!");
+    },
+    function(e) {
+      console.log("Error sending weather info to Pebble!");
+    }
+  );
 }
 
+function getForecast() {
+  console.log("getForecast using Open-Meteo API");
+  
+  // Prevent concurrent requests
+  if (weatherXhrPending) {
+    console.log("Weather XHR already pending, skipping");
+    return;
+  }
+  
+  weatherXhrPending = true;
+  
+  // Open-Meteo API with Météo-France AROME model (excellent for France)
+  var urlOpenMeteo = 'https://api.open-meteo.com/v1/meteofrance?' +
+    'latitude=' + current_Latitude + '&longitude=' + current_Longitude +
+    '&hourly=temperature_2m,precipitation,weather_code,wind_gusts_10m' +
+    '&forecast_days=2&timezone=auto';
+  
+  console.log("Weather URL: " + urlOpenMeteo);
+  
+  xhrRequest(urlOpenMeteo, 'GET',
+    function(responseText) {
+      try {
+        processOpenMeteoResponse(responseText);
+        onWeatherFetchSuccess();
+      } catch (e) {
+        console.error("Error processing Open-Meteo response: " + e);
+        onWeatherFetchError('parse_error');
+      }
+    },
+    onWeatherFetchError
+  );
+}
 
 function locationSuccess(pos) {
-  var units = localStorage.getItem(152);
-  var provider = localStorage.getItem(153);
-
-  //console.log('locationSuccess units: ' + units);
- // console.log('locationSuccess provider: ' + provider);
-  var units_s;
-
-  if(units==1){
-    units_s="imperial";
-  }
-  else{
-    units_s="metric";
-  }
-  var url1;
-  var url2;
-  if (provider==1){
-
-
-    url1 = 'http://api.openweathermap.org/data/2.5/weather?lat=' +
-      pos.coords.latitude + '&lon=' + pos.coords.longitude + '&appid=' + myAPIKey + '&units='+units_s;
-
-    url2 = 'http://api.openweathermap.org/data/2.5/forecast?lat=' +
-      pos.coords.latitude + '&lon=' + pos.coords.longitude + '&appid=' + myAPIKey + '&units='+units_s;
-   // console.log('locationSuccess url1: ' + url1);
-   // console.log('locationSuccess url2: ' + url2);
-
-    getForecast_owm(url1,url2);
-
-  }
-
-  else{
-
-    //  console.log("locationSuccess");
-    var lat= pos.coords.latitude;
-    var lng= pos.coords.longitude;
-    var coordinates=lat+','+lng;
-
-    // console.log('getWeatherCoord coordinates: ' + coordinates);
-    localStorage.setItem(156, JSON.stringify(coordinates));
-    getWeatherCoord();
-
-  }
-
-
-
+  current_Latitude = pos.coords.latitude;
+  current_Longitude = pos.coords.longitude;
+  
+  // Store coordinates for fallback
+  localStorage.setItem(160, current_Latitude);
+  localStorage.setItem(161, current_Longitude);
+  
+  console.log("Location success: " + current_Latitude + ", " + current_Longitude);
+  getForecast();
 }
 
 function locationError(err) {
-  // console.log("Error requesting location!");
+  console.log("Error requesting location, trying saved coordinates");
+  
+  current_Latitude = localStorage.getItem(160);
+  current_Longitude = localStorage.getItem(161);
+  
+  if (current_Latitude !== null && current_Longitude !== null) {
+    console.log("Using saved coordinates: " + current_Latitude + ", " + current_Longitude);
+    getForecast();
+  } else {
+    console.log("No saved coordinates available");
+  }
 }
 
-
-
-function send_url_position() {
+function getPosition() {
+  console.log("Getting position...");
   navigator.geolocation.getCurrentPosition(
     locationSuccess,
     locationError,
-    {timeout: 15000, maximumAge: 60000}
+    {timeout: 15000, maximumAge: 120000}
   );
-
-
 }
 
-function getWeatherLocation(){
-  // console.log("getWeatherLocation");
-  var location;
-  if (localStorage.getItem(154)!==null){
-    location = localStorage.getItem(154);
-  }
-  else{
-    location="Bandol, France";
-
-  }
-  var coordinates;
-  var urlGoogle = 'https://maps.googleapis.com/maps/api/geocode/json?address='+location+'&key='+myGoogleAPIKey;
-  urlGoogle=urlGoogle.replace(/"/g,"");
-  urlGoogle=urlGoogle.replace(/ /g,"+"); 
-
-  //  console.log('google url: ' + urlGoogle);
-
-
-
-  xhrRequest(urlGoogle, 'GET', 
-             function(responseText) {
-               //console.log("urlGoogle");
-
-               var json = JSON.parse(responseText);
-
-               location = json.results[0].formatted_address;
-               location=location.replace(/"/g,"");
-
-               var lat= json.results[0].geometry.location.lat;
-               var lng= json.results[0].geometry.location.lng;
-
-               coordinates=lat+','+lng;
-               // Persist write a key with associated value
-
-
-               localStorage.setItem(156, JSON.stringify(coordinates));
-               localStorage.setItem(154, JSON.stringify(location));
-
-               //console.log('getCoordFromLocation coordinates: ' + coordinates);
-               // console.log('getCoordFromLocation location: ' + location);
-               getForecast_wu();
-             });
-}
-
-function send_url_city() {
-  var city = localStorage.getItem(151);
-  var units = localStorage.getItem(152);
-  var provider = localStorage.getItem(153);
-
-
-  var units_s;
-  if(units==1){
-    units_s="imperial";
-  }
-  else{
-    units_s="metric";
-  }
-  var url1;
-  var url2;
-  if (provider==1){
-
-    url1 = 'http://api.openweathermap.org/data/2.5/weather?q='+city+ '&appid=' + myAPIKey + '&units='+units_s;
-    url2 = 'http://api.openweathermap.org/data/2.5/forecast?q='+city+ '&appid=' + myAPIKey + '&units='+units_s;  
-    getForecast_owm(url1,url2);
-  }
-  else{
-    getWeatherLocation();
-
-
-  }
-
-}
-
-
-
-
-
-function getWeather(){
-  //console.log("getWeather !!");
-  var gps = localStorage.getItem(150);
-  var city = localStorage.getItem(151);
-  //console.log("gps !!", gps);
-  if((gps===null||gps==1||city==null||city=="undefined")) {
-    send_url_position() ;           
-  }
-  //city string
-  else if(localStorage.getItem(150)!==null)
-  {
-    send_url_city() ;      
-  }    
-
+function getWeather() {
+  console.log("getWeather called");
+  getPosition();
 }
 
 // Listen for when the watchface is opened
 Pebble.addEventListener('ready', 
                         function(e) {
-                         // console.log("avant battery init");
                           Battery_Init();
-
-                          //console.log("PebbleKit JS ready!");
+                          console.log("PebbleKit JS ready - auto weather fetch");
+                          // Auto-trigger one weather fetch on startup
+                          setTimeout(function () {
+                            getWeather();
+                          }, 500);
                         }
                        );
 
