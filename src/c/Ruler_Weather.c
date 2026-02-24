@@ -358,7 +358,7 @@ static int status_offset_y = 0;
 
 static int hour_line_ypos = 84 + YOFFSET;
 static int steel_y_offset = 0;
-static int top_extra_offset = SECOND_OFFSET;
+static int top_extra_offset = 0;
 
 static char pebble_Lang[20] = " ";
 
@@ -1532,13 +1532,6 @@ static void inbox_received_callback(DictionaryIterator *iterator,
     is_pc = pc_tuple->value->int32;
     is_classic = classic_tuple->value->int32;
     is_steel_offset = steel_offset_tuple->value->int32;
-#if !defined(PBL_ROUND)
-    if (is_steel_offset && watch_info_get_model() == WATCH_INFO_MODEL_PEBBLE_STEEL)
-      steel_y_offset = STEEL_Y_OFFSET;
-    else
-      steel_y_offset = 0;
-    hour_line_ypos = 84 + YOFFSET + steel_y_offset;
-#endif
     snprintf(city, sizeof(city), "%s", city_tuple->value->cstring);
 
     char utc_char[10];
@@ -1690,7 +1683,6 @@ static void inbox_received_callback(DictionaryIterator *iterator,
     persist_write_bool(KEY_TOGGLE_GRADIANT, is_gradiant);
     persist_write_bool(KEY_TOGGLE_CLASSIC, is_classic);
     persist_write_bool(KEY_TOGGLE_STEEL_OFFSET, is_steel_offset);
-    layer_mark_dirty(layer);
     //   APP_LOG(APP_LOG_LEVEL_DEBUG,"dirty inbox_received_callback+ settings");
     // Begin dictionary
     vibes_double_pulse();
@@ -1944,8 +1936,10 @@ static void init_var() {
 #if !defined(PBL_ROUND)
   if (is_steel_offset && watch_info_get_model() == WATCH_INFO_MODEL_PEBBLE_STEEL) {
     steel_y_offset = STEEL_Y_OFFSET;
+    top_extra_offset = SECOND_OFFSET;
   } else {
     steel_y_offset = 0;
+    top_extra_offset = 0;
   }
   hour_line_ypos = 84 + YOFFSET + steel_y_offset;
 #endif

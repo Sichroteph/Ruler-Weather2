@@ -429,7 +429,6 @@ Pebble.addEventListener('webviewclosed', function (e) {
   var toggle_centered = configData['toggle_centered'];
   var toggle_month = configData['toggle_month'];
   var toggle_classic = configData['toggle_classic'];
-  var toggle_steel_offset = configData['toggle_steel_offset'];
 
 
   var toggle_bw_icons = configData['toggle_bw_icons'];
