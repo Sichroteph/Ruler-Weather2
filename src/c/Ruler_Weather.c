@@ -1107,6 +1107,14 @@ static void update_proc(Layer *layer, GContext *ctx) {
       y += line_interval;
     }
   }
+
+  // Draw gradient overlay last, on top of everything
+  if (is_gradiant && !IS_ROUND) {
+    graphics_context_set_compositing_mode(ctx, GCompOpSet);
+    GBitmap *s_gradiant = gbitmap_create_with_resource(RESOURCE_ID_GRADIANT);
+    graphics_draw_bitmap_in_rect(ctx, s_gradiant, GRect(0, 0, WIDTH, HEIGHT));
+    gbitmap_destroy(s_gradiant);
+  }
 }
 
 static void handle_tick(struct tm *cur, TimeUnits units_changed) {
