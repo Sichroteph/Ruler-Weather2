@@ -1,7 +1,7 @@
 // force la météo sur l'émulateur
-var m_b_Debug=false;
+var m_b_Debug = false;
 
-var phone_bat=100;
+var phone_bat = 100;
 
 // Current position storage
 var current_Latitude;
@@ -76,23 +76,23 @@ function isNightTime(hour) {
 
 var xhrRequest = function (url, type, callback, errorCallback) {
   var xhr = new XMLHttpRequest();
-  
+
   xhr.timeout = 15000;
-  
+
   xhr.onload = function () {
     callback(this.responseText);
   };
-  
+
   xhr.onerror = function (err) {
     console.error('XHR failed', err);
     if (errorCallback) errorCallback('network_error');
   };
-  
+
   xhr.ontimeout = function () {
     console.error('XHR timeout after 15s');
     if (errorCallback) errorCallback('timeout');
   };
-  
+
   xhr.open(type, url);
   xhr.send();
 };
@@ -113,7 +113,7 @@ function onWeatherFetchError(reason) {
   weatherXhrPending = false;
   weatherRetryCount++;
   console.log("Weather fetch failed (" + reason + "), retry " + weatherRetryCount + "/" + weatherMaxRetries);
-  
+
   if (weatherRetryCount < weatherMaxRetries) {
     console.log("Scheduling retry in " + weatherRetryDelayMs + "ms");
     weatherRetryTimer = setTimeout(function () {
@@ -131,20 +131,20 @@ function processOpenMeteoResponse(responseText) {
   var json = JSON.parse(responseText);
   var hourly = json.hourly;
   var units = localStorage.getItem(152);
-  
+
   // Current conditions (first hour in forecast)
   var now = new Date();
   var currentHour = now.getHours();
   var isNight = isNightTime(currentHour);
-  
+
   // Calculate current hour offset in API data
   var hourOffset = currentHour;
-  
+
   var currentTemp = hourly.temperature_2m[hourOffset];
   var currentWindSpeed = hourly.wind_gusts_10m[hourOffset];
   var currentWmoCode = hourly.weather_code[hourOffset];
   var icon = wmoCodeToIcon(currentWmoCode, isNight);
-  
+
   // Calculate min/max for next 24 hours
   var tmin = 1000;
   var tmax = -1000;
@@ -153,9 +153,9 @@ function processOpenMeteoResponse(responseText) {
     if (temp < tmin) tmin = temp;
     if (temp > tmax) tmax = temp;
   }
-  
+
   var temperature = currentTemp;
-  
+
   if (units == 1) {
     temperature = celsiusToFahrenheit(temperature);
     tmin = celsiusToFahrenheit(tmin);
@@ -165,11 +165,11 @@ function processOpenMeteoResponse(responseText) {
     tmin = Math.round(tmin);
     tmax = Math.round(tmax);
   }
-  
+
   temperature = Math.round(temperature);
   tmax = Math.round(tmax);
   tmin = Math.round(tmin);
-  
+
   // Wind speed conversion
   var wind;
   if (units == 1) {
@@ -179,28 +179,28 @@ function processOpenMeteoResponse(responseText) {
     // Keep in km/h
     wind = Math.round(currentWindSpeed);
   }
-  
+
   // Extract hourly forecast data (every 3 hours: +0, +3, +6, +9)
   var temp1, temp2, temp3, temp4, temp5;
   var hour1, hour2, hour3;
   var icon1, icon2, icon3;
   var wind1, wind2, wind3;
   var rain1, rain2, rain3, rain4, rain5;
-  
+
   // Calculate indices for +0, +3, +6, +9, +12 hours
   var idx0 = hourOffset;
   var idx1 = hourOffset + 3;
   var idx2 = hourOffset + 6;
   var idx3 = hourOffset + 9;
   var idx4 = hourOffset + 12;
-  
+
   // Temperatures
   temp1 = hourly.temperature_2m[idx0];
   temp2 = hourly.temperature_2m[idx1];
   temp3 = hourly.temperature_2m[idx2];
   temp4 = hourly.temperature_2m[idx3];
   temp5 = hourly.temperature_2m[idx4];
-  
+
   if (units == 1) {
     temp1 = celsiusToFahrenheit(temp1);
     temp2 = celsiusToFahrenheit(temp2);
@@ -214,20 +214,20 @@ function processOpenMeteoResponse(responseText) {
     temp4 = Math.round(temp4);
     temp5 = Math.round(temp5);
   }
-  
+
   // Hours (local time)
   hour1 = ((currentHour + 3) % 24) + "";
   hour2 = ((currentHour + 6) % 24) + "";
   hour3 = ((currentHour + 9) % 24) + "";
-  
+
   // Icons for forecast hours
   icon1 = wmoCodeToIcon(hourly.weather_code[idx1], isNightTime((currentHour + 3) % 24));
   icon2 = wmoCodeToIcon(hourly.weather_code[idx2], isNightTime((currentHour + 6) % 24));
   icon3 = wmoCodeToIcon(hourly.weather_code[idx3], isNightTime((currentHour + 9) % 24));
-  
+
   console.log("Icons: main=" + icon + " wmo=" + currentWmoCode + " icon1=" + icon1 + " icon2=" + icon2 + " icon3=" + icon3);
   console.log("Temp=" + temperature + " wind=" + wind + " tmin=" + tmin + " tmax=" + tmax);
-  
+
   // Wind speed for forecast hours
   if (units == 1) {
     wind1 = Math.round(hourly.wind_gusts_10m[idx1] * 0.621371);
@@ -238,14 +238,14 @@ function processOpenMeteoResponse(responseText) {
     wind2 = Math.round(hourly.wind_gusts_10m[idx2]);
     wind3 = Math.round(hourly.wind_gusts_10m[idx3]);
   }
-  
+
   // Precipitation (scaled by 10 for compatibility)
   rain1 = Math.round((hourly.precipitation[idx0] || 0) * 10);
   rain2 = Math.round((hourly.precipitation[idx1] || 0) * 10);
   rain3 = Math.round((hourly.precipitation[idx2] || 0) * 10);
   rain4 = Math.round((hourly.precipitation[idx3] || 0) * 10);
   rain5 = Math.round((hourly.precipitation[idx4] || 0) * 10);
-  
+
   // Get location from localStorage if available
   var location = localStorage.getItem(154);
   if (location) {
@@ -253,7 +253,7 @@ function processOpenMeteoResponse(responseText) {
   } else {
     location = "GPS";
   }
-  
+
   // Assemble dictionary using Ruler Weather keys
   var dictionary = {
     "KEY_TEMPERATURE": temperature,
@@ -281,13 +281,13 @@ function processOpenMeteoResponse(responseText) {
     "KEY_FORECAST_ICON3": icon3,
     "KEY_LOCATION": location,
   };
-  
+
   // Send to Pebble
   Pebble.sendAppMessage(dictionary,
-    function(e) {
+    function (e) {
       console.log("Weather info sent to Pebble successfully!");
     },
-    function(e) {
+    function (e) {
       console.log("Error sending weather info to Pebble!");
     }
   );
@@ -295,25 +295,25 @@ function processOpenMeteoResponse(responseText) {
 
 function getForecast() {
   console.log("getForecast using Open-Meteo API");
-  
+
   // Prevent concurrent requests
   if (weatherXhrPending) {
     console.log("Weather XHR already pending, skipping");
     return;
   }
-  
+
   weatherXhrPending = true;
-  
+
   // Open-Meteo API with Météo-France AROME model (excellent for France)
   var urlOpenMeteo = 'https://api.open-meteo.com/v1/meteofrance?' +
     'latitude=' + current_Latitude + '&longitude=' + current_Longitude +
     '&hourly=temperature_2m,precipitation,weather_code,wind_gusts_10m' +
     '&forecast_days=2&timezone=auto';
-  
+
   console.log("Weather URL: " + urlOpenMeteo);
-  
+
   xhrRequest(urlOpenMeteo, 'GET',
-    function(responseText) {
+    function (responseText) {
       try {
         processOpenMeteoResponse(responseText);
         onWeatherFetchSuccess();
@@ -329,21 +329,21 @@ function getForecast() {
 function locationSuccess(pos) {
   current_Latitude = pos.coords.latitude;
   current_Longitude = pos.coords.longitude;
-  
+
   // Store coordinates for fallback
   localStorage.setItem(160, current_Latitude);
   localStorage.setItem(161, current_Longitude);
-  
+
   console.log("Location success: " + current_Latitude + ", " + current_Longitude);
   getForecast();
 }
 
 function locationError(err) {
   console.log("Error requesting location, trying saved coordinates");
-  
+
   current_Latitude = localStorage.getItem(160);
   current_Longitude = localStorage.getItem(161);
-  
+
   if (current_Latitude !== null && current_Longitude !== null) {
     console.log("Using saved coordinates: " + current_Latitude + ", " + current_Longitude);
     getForecast();
@@ -357,7 +357,7 @@ function getPosition() {
   navigator.geolocation.getCurrentPosition(
     locationSuccess,
     locationError,
-    {timeout: 15000, maximumAge: 120000}
+    { timeout: 15000, maximumAge: 120000 }
   );
 }
 
@@ -367,33 +367,32 @@ function getWeather() {
 }
 
 // Listen for when the watchface is opened
-Pebble.addEventListener('ready', 
-                        function(e) {
-                          Battery_Init();
-                          console.log("PebbleKit JS ready - auto weather fetch");
-                          // Auto-trigger one weather fetch on startup
-                          setTimeout(function () {
-                            getWeather();
-                          }, 500);
-                        }
-                       );
+Pebble.addEventListener('ready',
+  function (e) {
+    Battery_Init();
+    console.log("PebbleKit JS ready - auto weather fetch");
+    // Auto-trigger one weather fetch on startup
+    setTimeout(function () {
+      getWeather();
+    }, 500);
+  }
+);
 
 
 
 Pebble.addEventListener('appmessage',
-                        function(e) {  
-                          if((navigator.onLine)||(m_b_Debug)){   
-                          //  console.log("Appel météo !!");
-                            getWeather();  
-                          }
-                        }                     
-                       );
+  function (e) {
+    if ((navigator.onLine) || (m_b_Debug)) {
+      //  console.log("Appel météo !!");
+      getWeather();
+    }
+  }
+);
 
 
 
-Pebble.addEventListener('showConfiguration', function() {
-  //var url = 'http://sichroteph.github.io/Ruler-Weather/';
-  var url = 'http://sichroteph.github.io/Ruler-Weather/';
+Pebble.addEventListener('showConfiguration', function () {
+  var url = 'https://sichroteph.github.io/Ruler-Weather/?v=124';
 
   //  console.log('Showing configuration page: ' + url);
   Pebble.openURL(url);
@@ -403,7 +402,7 @@ Pebble.addEventListener('showConfiguration', function() {
 
 
 
-Pebble.addEventListener('webviewclosed', function(e) {
+Pebble.addEventListener('webviewclosed', function (e) {
   var configData = JSON.parse(decodeURIComponent(e.response));
   // console.log('Configuration page returned: ' + JSON.stringify(configData));
 
@@ -427,7 +426,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
   var toggle_inv = configData['toggle_inv'];
   var toggle_100 = configData['toggle_100'];
   var toggle_80 = configData['toggle_80'];
-  var toggle_centered = configData['toggle_centered']; 
+  var toggle_centered = configData['toggle_centered'];
   var toggle_month = configData['toggle_month'];
 
 
@@ -462,7 +461,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
   dict['KEY_SELECT_GOAL'] = configData['select_goal'];
   dict['KEY_SELECT_SCREEN'] = configData['select_screen'];
   dict['KEY_SELECT_FONTS'] = configData['select_fonts'];
-  
+
   dict['KEY_SELECT_PROVIDER'] = configData['select_provider'];
 
   dict['KEY_RADIO_UNITS'] = configData['radio_units'] ? 1 : 0;
@@ -525,12 +524,12 @@ Pebble.addEventListener('webviewclosed', function(e) {
 
 
   // Send to watchapp
-  Pebble.sendAppMessage(dict, function() {
+  Pebble.sendAppMessage(dict, function () {
     // console.log('Send successful: ' + JSON.stringify(dict));
-  }, function() {
+  }, function () {
     // console.log('Send failed!');
   }
-                       );
+  );
 
 
 });
