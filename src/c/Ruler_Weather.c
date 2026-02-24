@@ -25,6 +25,7 @@
 // Vertical offset for Pebble Steel (screen is physically shifted up in the
 // case)
 #define STEEL_Y_OFFSET 16
+#define SECOND_OFFSET 8
 
 // For the gradiant effect, 1/2 pixels, 1/3 and 1/4
 #define GRADIANT 4
@@ -355,6 +356,7 @@ static int status_offset_y = 0;
 
 static int hour_line_ypos = 84 + YOFFSET;
 static int steel_y_offset = 0;
+static int top_extra_offset = SECOND_OFFSET;
 
 static char pebble_Lang[20] = " ";
 
@@ -565,15 +567,18 @@ static void update_proc(Layer *layer, GContext *ctx) {
   int hour_size = 12 * line_interval; // 12 marks, one every 5 minutes
   GBitmap *s_icon;
 
+  // Extra downward shift for day/weekday on Pebble Steel with gradient
+  int gradient_day_extra = (steel_y_offset > 0 && is_gradiant) ? 5 : 0;
+
   // DRAW DIAL
-  GRect rect_text_day = {
-      {TEXT_DAY_STATUS_OFFSET_X + status_offset_x,
-       TEXT_DAY_STATUS_OFFSET_Y + status_offset_y + steel_y_offset + 2},
-      {RULER_XOFFSET, 150}};
-  GRect rect_text_dayw = {
-      {TEXT_DAYW_STATUS_OFFSET_X + status_offset_x,
-       TEXT_DAYW_STATUS_OFFSET_Y + status_offset_y + steel_y_offset + 2},
-      {RULER_XOFFSET, 150}};
+  GRect rect_text_day = {{TEXT_DAY_STATUS_OFFSET_X + status_offset_x,
+                          TEXT_DAY_STATUS_OFFSET_Y + status_offset_y +
+                              steel_y_offset + 2 + gradient_day_extra},
+                         {RULER_XOFFSET, 150}};
+  GRect rect_text_dayw = {{TEXT_DAYW_STATUS_OFFSET_X + status_offset_x,
+                           TEXT_DAYW_STATUS_OFFSET_Y + status_offset_y +
+                               steel_y_offset + 2 + gradient_day_extra},
+                          {RULER_XOFFSET, 150}};
   GRect rect_text_month = {
       {TEXT_MONTH_STATUS_OFFSET_X + status_offset_x,
        TEXT_MONTH_STATUS_OFFSET_Y + status_offset_y + steel_y_offset},
@@ -898,9 +903,10 @@ static void update_proc(Layer *layer, GContext *ctx) {
   if (!IS_ROUND && is_classic) {
     // Classic view: day of week + date at top, then tmin, icon, tmax, current
     // temp
-    GRect rect_classic_dayw = {{2, 0 + steel_y_offset + 2},
+    GRect rect_classic_dayw = {{2, 0 + steel_y_offset + 2 + gradient_day_extra},
                                {RULER_XOFFSET, 20}};
-    GRect rect_classic_day = {{0, 8 + steel_y_offset + 2}, {RULER_XOFFSET, 30}};
+    GRect rect_classic_day = {{0, 8 + steel_y_offset + 2 + gradient_day_extra},
+                              {RULER_XOFFSET, 30}};
     GRect rect_classic_tmin = {{0, 48 + steel_y_offset}, {RULER_XOFFSET, 20}};
     GRect rect_classic_tmax = {{0, 100 + steel_y_offset}, {RULER_XOFFSET, 20}};
     GRect rect_classic_temp = {{0, 136}, {RULER_XOFFSET, 32}};
@@ -1141,8 +1147,8 @@ static void update_proc(Layer *layer, GContext *ctx) {
         gbitmap_create_with_resource(RESOURCE_ID_GRADIANT_HAUT);
     GBitmap *s_grad_bas =
         gbitmap_create_with_resource(RESOURCE_ID_GRADIANT_BAS);
-    graphics_draw_bitmap_in_rect(ctx, s_grad_haut,
-                                 GRect(0, steel_y_offset, 144, 21));
+    graphics_draw_bitmap_in_rect(
+        ctx, s_grad_haut, GRect(0, steel_y_offset + top_extra_offset, 144, 21));
     graphics_draw_bitmap_in_rect(ctx, s_grad_bas,
                                  GRect(0, HEIGHT - 20, 144, 20));
     gbitmap_destroy(s_grad_haut);
@@ -1152,7 +1158,9 @@ static void update_proc(Layer *layer, GContext *ctx) {
   // Pebble Steel: black bar at very top, drawn last to cover everything
   if (steel_y_offset > 0) {
     graphics_context_set_fill_color(ctx, GColorBlack);
-    graphics_fill_rect(ctx, GRect(0, 0, WIDTH, steel_y_offset), 0, GCornerNone);
+    graphics_fill_rect(ctx,
+                       GRect(0, 0, WIDTH, steel_y_offset + top_extra_offset), 0,
+                       GCornerNone);
   }
 }
 
