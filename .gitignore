@@ -1,0 +1,5 @@
+# Artefacts de compilation Pebble SDK
+build/
+.lock-waf_linux_build
+*.pyc
+__pycache__/
