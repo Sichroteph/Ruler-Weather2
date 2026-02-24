@@ -135,6 +135,7 @@
 #define KEY_TOGGLE_PC 111
 #define KEY_SELECT_PROVIDER 112
 #define KEY_TOGGLE_CLASSIC 113
+#define KEY_TOGGLE_STEEL_OFFSET 114
 
 #if defined(PBL_ROUND)
 
@@ -335,6 +336,7 @@ static bool is_bw_icon = 0;
 static bool is_gradiant = 0;
 static bool is_ruler_large = 1;
 static bool is_classic = false;
+static bool is_steel_offset = true;
 static GColor color_right;
 static GColor color_left;
 static GColor color_hours;
@@ -1370,6 +1372,7 @@ static void inbox_received_callback(DictionaryIterator *iterator,
   Tuple *phone_100_tuple = dict_find(iterator, KEY_TOGGLE_100);
   Tuple *phone_80_tuple = dict_find(iterator, KEY_TOGGLE_80);
   Tuple *classic_tuple = dict_find(iterator, KEY_TOGGLE_CLASSIC);
+  Tuple *steel_offset_tuple = dict_find(iterator, KEY_TOGGLE_STEEL_OFFSET);
 
   Tuple *color_right_r_tuple = dict_find(iterator, KEY_COLOR_RIGHT_R);
   Tuple *color_right_g_tuple = dict_find(iterator, KEY_COLOR_RIGHT_G);
@@ -1519,7 +1522,7 @@ static void inbox_received_callback(DictionaryIterator *iterator,
       gradiant_ruler_large_tuple && centered_tuple && month_tuple &&
       goal_tuple && fonts_tuple && provider_tuple && bt_tuple && inv_tuple &&
       phone_100_tuple && phone_80_tuple && tg_tuple && pc_tuple &&
-      classic_tuple) {
+      classic_tuple && steel_offset_tuple) {
 
     is_gps = gps_tuple->value->int32;
     is_centered = centered_tuple->value->int32;
@@ -1528,6 +1531,14 @@ static void inbox_received_callback(DictionaryIterator *iterator,
     is_tg = tg_tuple->value->int32;
     is_pc = pc_tuple->value->int32;
     is_classic = classic_tuple->value->int32;
+    is_steel_offset = steel_offset_tuple->value->int32;
+#if !defined(PBL_ROUND)
+    if (is_steel_offset && watch_info_get_model() == WATCH_INFO_MODEL_PEBBLE_STEEL)
+      steel_y_offset = STEEL_Y_OFFSET;
+    else
+      steel_y_offset = 0;
+    hour_line_ypos = 84 + YOFFSET + steel_y_offset;
+#endif
     snprintf(city, sizeof(city), "%s", city_tuple->value->cstring);
 
     char utc_char[10];
@@ -1678,6 +1689,8 @@ static void inbox_received_callback(DictionaryIterator *iterator,
     persist_write_bool(KEY_TOGGLE_BW_ICONS, is_bw_icon);
     persist_write_bool(KEY_TOGGLE_GRADIANT, is_gradiant);
     persist_write_bool(KEY_TOGGLE_CLASSIC, is_classic);
+    persist_write_bool(KEY_TOGGLE_STEEL_OFFSET, is_steel_offset);
+    layer_mark_dirty(layer);
     //   APP_LOG(APP_LOG_LEVEL_DEBUG,"dirty inbox_received_callback+ settings");
     // Begin dictionary
     vibes_double_pulse();
@@ -1758,6 +1771,10 @@ static void init_var() {
       is_classic = persist_read_bool(KEY_TOGGLE_CLASSIC);
     else
       is_classic = true;
+    if (persist_exists(KEY_TOGGLE_STEEL_OFFSET))
+      is_steel_offset = persist_read_bool(KEY_TOGGLE_STEEL_OFFSET);
+    else
+      is_steel_offset = true;
     int red;
     int green;
     int blue;
@@ -1925,7 +1942,7 @@ static void init_var() {
 // Detect Pebble Steel and apply vertical offset to compensate
 // for the screen being physically shifted upward in the case
 #if !defined(PBL_ROUND)
-  if (watch_info_get_model() == WATCH_INFO_MODEL_PEBBLE_STEEL) {
+  if (is_steel_offset && watch_info_get_model() == WATCH_INFO_MODEL_PEBBLE_STEEL) {
     steel_y_offset = STEEL_Y_OFFSET;
   } else {
     steel_y_offset = 0;
