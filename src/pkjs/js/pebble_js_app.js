@@ -428,6 +428,7 @@ Pebble.addEventListener('webviewclosed', function (e) {
   var toggle_80 = configData['toggle_80'];
   var toggle_centered = configData['toggle_centered'];
   var toggle_month = configData['toggle_month'];
+  var toggle_classic = configData['toggle_classic'];
 
 
   var toggle_bw_icons = configData['toggle_bw_icons'];
@@ -481,6 +482,7 @@ Pebble.addEventListener('webviewclosed', function (e) {
   dict['KEY_TOGGLE_RULER_LARGE'] = configData['toggle_ruler_large'] ? 1 : 0;
   dict['KEY_TOGGLE_CENTERED'] = configData['toggle_centered'] ? 1 : 0;
   dict['KEY_TOGGLE_MONTH'] = configData['toggle_month'] ? 1 : 0;
+  dict['KEY_TOGGLE_CLASSIC'] = configData['toggle_classic'] ? 1 : 0;
 
   dict['KEY_COLOR_RIGHT_R'] = parseInt(color_right_back.substring(2, 4), 16);
   dict['KEY_COLOR_RIGHT_G'] = parseInt(color_right_back.substring(4, 6), 16);

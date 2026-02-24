@@ -129,6 +129,7 @@
 #define KEY_TOGGLE_TG 110
 #define KEY_TOGGLE_PC 111
 #define KEY_SELECT_PROVIDER 112
+#define KEY_TOGGLE_CLASSIC 113
 
 #if defined(PBL_ROUND)
 
@@ -328,6 +329,7 @@ static int select_goal = 0;
 static bool is_bw_icon = 0;
 static bool is_gradiant = 0;
 static bool is_ruler_large = 1;
+static bool is_classic = false;
 static GColor color_right;
 static GColor color_left;
 static GColor color_hours;
@@ -676,7 +678,7 @@ static void update_proc(Layer *layer, GContext *ctx) {
       gbitmap_destroy(s_icon);
     }
 
-    if (!IS_ROUND) {
+    if (!IS_ROUND && !is_classic) {
       s_icon = gbitmap_create_with_resource(icon_id6);
       graphics_draw_bitmap_in_rect(ctx, s_icon, rect_icon6);
       gbitmap_destroy(s_icon);
@@ -722,9 +724,17 @@ static void update_proc(Layer *layer, GContext *ctx) {
   }
 
   if (!IS_ROUND) {
-    snprintf(tmin, sizeof(tmin), "%i|%i", tmax_val, tmin_val);
-
-    snprintf(weather_temp_char, sizeof(weather_temp_char), "%i°", weather_temp);
+    if (is_classic) {
+      snprintf(tmin, sizeof(tmin), "%i", tmin_val);
+      snprintf(tmax, sizeof(tmax), "%i", tmax_val);
+      if (is_metric)
+        snprintf(weather_temp_char, sizeof(weather_temp_char), "%i°", weather_temp);
+      else
+        snprintf(weather_temp_char, sizeof(weather_temp_char), "%iF", weather_temp);
+    } else {
+      snprintf(tmin, sizeof(tmin), "%i|%i", tmax_val, tmin_val);
+      snprintf(weather_temp_char, sizeof(weather_temp_char), "%i°", weather_temp);
+    }
   } else {
     snprintf(tmin, sizeof(tmin), "%i", tmin_val);
     snprintf(tmax, sizeof(tmax), "%i", tmax_val);
@@ -734,7 +744,7 @@ static void update_proc(Layer *layer, GContext *ctx) {
   // Batterie
   // APP_LOG(APP_LOG_LEVEL_INFO, "5");
 
-  if (!IS_ROUND) {
+  if (!IS_ROUND && !is_classic) {
 
     if (phone_bat == 0)
       bat_offset += 2;
@@ -811,7 +821,7 @@ static void update_proc(Layer *layer, GContext *ctx) {
           0, GCornerNone);
     }
 
-  } else {
+  } else if (IS_ROUND) {
     int bat = (int)battery_level * 2 / 10;
     int invbat = 20 - bat;
     graphics_context_set_fill_color(ctx, color_temp);
@@ -872,7 +882,35 @@ static void update_proc(Layer *layer, GContext *ctx) {
                      GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
 
 #else
-  if (!IS_ROUND) {
+  if (!IS_ROUND && is_classic) {
+    // Classic view: day of week + date at top, then tmin, icon, tmax, current temp
+    GRect rect_classic_dayw = {{2, 0}, {RULER_XOFFSET, 20}};
+    GRect rect_classic_day = {{0, 8}, {RULER_XOFFSET, 30}};
+    GRect rect_classic_tmin = {{0, 48}, {RULER_XOFFSET, 20}};
+    GRect rect_classic_tmax = {{0, 100}, {RULER_XOFFSET, 20}};
+    GRect rect_classic_temp = {{0, 136}, {RULER_XOFFSET, 32}};
+
+    graphics_context_set_text_color(ctx, color_temp);
+    graphics_draw_text(ctx, week_day, fontsmall, rect_classic_dayw,
+                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+    graphics_draw_text(ctx, mday, fontmedium, rect_classic_day,
+                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+
+    if ((mktime(&now) - last_refresh) < duration + 600) {
+      // tmin above icon (cool color)
+      graphics_context_set_text_color(ctx, BLUE_LINE);
+      graphics_draw_text(ctx, tmin, fontsmallbold, rect_classic_tmin,
+                         GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+      // tmax below icon (warm color)
+      graphics_context_set_text_color(ctx, RED_LINE);
+      graphics_draw_text(ctx, tmax, fontsmallbold, rect_classic_tmax,
+                         GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+      // Current temperature
+      graphics_context_set_text_color(ctx, color_temp);
+      graphics_draw_text(ctx, weather_temp_char, fontmedium, rect_classic_temp,
+                         GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+    }
+  } else if (!IS_ROUND) {
     if (is_connected) {
       if (!is_month) {
         graphics_draw_text(ctx, week_day, fontsmall, rect_text_dayw,
@@ -899,19 +937,18 @@ static void update_proc(Layer *layer, GContext *ctx) {
       graphics_draw_bitmap_in_rect(ctx, s_icon, rect_bt_disconect);
       gbitmap_destroy(s_icon);
     }
-  }
 
-  graphics_draw_text(ctx, mday, fontmedium, rect_text_day,
-                     GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+    graphics_draw_text(ctx, mday, fontmedium, rect_text_day,
+                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
 
-  // APP_LOG(APP_LOG_LEVEL_INFO, "7");
-  if ((mktime(&now) - last_refresh) < duration + 600) {
-    graphics_draw_text(ctx, weather_temp_char, fontsmallbold, rect_temp,
-                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-    graphics_draw_text(ctx, tmin, fontsmallbold, rect_tmin,
-                       GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-    graphics_draw_text(ctx, tmax, fontsmallbold, rect_tmax,
-                       GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
+    if ((mktime(&now) - last_refresh) < duration + 600) {
+      graphics_draw_text(ctx, weather_temp_char, fontsmallbold, rect_temp,
+                         GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+      graphics_draw_text(ctx, tmin, fontsmallbold, rect_tmin,
+                         GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+      graphics_draw_text(ctx, tmax, fontsmallbold, rect_tmax,
+                         GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
+    }
   }
 #endif
 
@@ -1277,6 +1314,7 @@ static void inbox_received_callback(DictionaryIterator *iterator,
   Tuple *inv_tuple = dict_find(iterator, KEY_TOGGLE_INV);
   Tuple *phone_100_tuple = dict_find(iterator, KEY_TOGGLE_100);
   Tuple *phone_80_tuple = dict_find(iterator, KEY_TOGGLE_80);
+  Tuple *classic_tuple = dict_find(iterator, KEY_TOGGLE_CLASSIC);
 
   Tuple *color_right_r_tuple = dict_find(iterator, KEY_COLOR_RIGHT_R);
   Tuple *color_right_g_tuple = dict_find(iterator, KEY_COLOR_RIGHT_G);
@@ -1425,7 +1463,8 @@ static void inbox_received_callback(DictionaryIterator *iterator,
       color_2nd_temp_g_tuple && color_2nd_temp_b_tuple &&
       gradiant_ruler_large_tuple && centered_tuple && month_tuple &&
       goal_tuple && fonts_tuple && provider_tuple && bt_tuple && inv_tuple &&
-      phone_100_tuple && phone_80_tuple && tg_tuple && pc_tuple) {
+      phone_100_tuple && phone_80_tuple && tg_tuple && pc_tuple &&
+      classic_tuple) {
 
     is_gps = gps_tuple->value->int32;
     is_centered = centered_tuple->value->int32;
@@ -1433,6 +1472,7 @@ static void inbox_received_callback(DictionaryIterator *iterator,
 
     is_tg = tg_tuple->value->int32;
     is_pc = pc_tuple->value->int32;
+    is_classic = classic_tuple->value->int32;
     snprintf(city, sizeof(city), "%s", city_tuple->value->cstring);
 
     char utc_char[10];
@@ -1582,6 +1622,7 @@ static void inbox_received_callback(DictionaryIterator *iterator,
     persist_write_bool(KEY_TOGGLE_VIBRATION, is_vibration);
     persist_write_bool(KEY_TOGGLE_BW_ICONS, is_bw_icon);
     persist_write_bool(KEY_TOGGLE_GRADIANT, is_gradiant);
+    persist_write_bool(KEY_TOGGLE_CLASSIC, is_classic);
     //   APP_LOG(APP_LOG_LEVEL_DEBUG,"dirty inbox_received_callback+ settings");
     // Begin dictionary
     vibes_double_pulse();
@@ -1658,6 +1699,10 @@ static void init_var() {
     if (!IS_COLOR)
       is_bw_icon = true;
     is_gradiant = persist_read_bool(KEY_TOGGLE_GRADIANT);
+    if (persist_exists(KEY_TOGGLE_CLASSIC))
+      is_classic = persist_read_bool(KEY_TOGGLE_CLASSIC);
+    else
+      is_classic = true;
     int red;
     int green;
     int blue;
@@ -1713,6 +1758,7 @@ static void init_var() {
 
     is_metric = true;
     is_vibration = false;
+    is_classic = true;
     is_bw_icon = false;
     if (!IS_COLOR)
       is_bw_icon = true;

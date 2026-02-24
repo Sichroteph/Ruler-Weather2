@@ -86,6 +86,7 @@
             "KEY_TOGGLE_GRADIANT": 59,
             "KEY_TOGGLE_INV": 109,
             "KEY_TOGGLE_MONTH": 104,
+            "KEY_TOGGLE_CLASSIC": 113,
             "KEY_TOGGLE_PC": 111,
             "KEY_TOGGLE_RULER_LARGE": 67,
             "KEY_TOGGLE_TG": 110,
@@ -426,5 +427,5 @@
             "watchface": true
         }
     },
-    "version": "6.29.0"
+    "version": "6.30.0"
 }
